@@ -1,10 +1,13 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { HeavyRendererComponentComponent } from './ui';
 import { AgGridAngular } from 'ag-grid-angular'; // AG Grid Component
-import { ColDef } from 'ag-grid-community';
+import { ColDef, GridOptions, ICellRendererParams } from 'ag-grid-community';
 import { ETF } from './models/etf';
 import { createMockEtfData } from './data';
-import { GridOptions } from 'ag-grid-community';
+import {
+  AgGridComponentManager,
+  AgGridNativeRendererAdapter,
+} from './ag-native-renderer-adapter';
 
 @Component({
   selector: 'ngagra-root',
@@ -25,10 +28,9 @@ import { GridOptions } from 'ag-grid-community';
 })
 export class AppComponent {
   protected readonly gridOptions: GridOptions<ETF> = {
-    defaultColDef: {
-      cellRenderer: HeavyRendererComponentComponent,
-      width: 175,
-    },
+    // defaultColDef: this.getDefaultColDefSlow(),
+    defaultColDef: this.getDefaultColDefFast(),
+    context: { componentManager: inject(AgGridComponentManager) },
   };
 
   protected readonly columnDefs: ColDef<ETF>[] = [
@@ -45,4 +47,34 @@ export class AppComponent {
   ];
 
   protected readonly rowData = createMockEtfData(10_000);
+
+  private getDefaultColDefSlow(): ColDef<ETF> {
+    return {
+      cellRenderer: HeavyRendererComponentComponent,
+      width: 175,
+    };
+  }
+
+  private getDefaultColDefFast(): ColDef<ETF> {
+    const nativeRendererAdapterParams = {
+      component: HeavyRendererComponentComponent,
+      nativeRendererAdapterOptions: {
+        hostElement: (params: ICellRendererParams<ETF>) =>
+          this.createNativeCellWithInputEl(params),
+      },
+    };
+
+    return {
+      cellRenderer: AgGridNativeRendererAdapter,
+      cellRendererParams: nativeRendererAdapterParams,
+      width: 175,
+    };
+  }
+
+  private createNativeCellWithInputEl(params: ICellRendererParams<ETF>) {
+    const hostElement = document.createElement('div');
+    hostElement.className = 'ag-input-cell';
+    hostElement.innerHTML = `<div class="native-cell-content">${params.value}</div>`;
+    return hostElement;
+  }
 }
