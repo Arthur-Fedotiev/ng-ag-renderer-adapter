@@ -1,4 +1,42 @@
-/* You can add global styles to this file, and also import other style files */
+/* Core Grid CSS */
+@import 'ag-grid-community/styles/ag-grid.css';
+/* Quartz Theme Specific CSS */
+@import 'ag-grid-community/styles/ag-theme-quartz.css';
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+}
+
+.ag-root {
+  height: 100%;
+  width: 100%;
+}
+
+.ag-cell {
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+}
+
+.ag-header-cell {
+  background-color: #f5f5f5;
+  color: #333;
+  border-right: 1px solid #ddd;
+  border-bottom: 2px solid #ddd;
+}
+
+.ag-row {
+  transition: background-color 0.3s;
+}
+
+.ag-row:hover {
+  background-color: #f5f5f5;
+}
+
+.ag-row:nth-child(even) {
+  background-color: #f9f9f9;
+}
