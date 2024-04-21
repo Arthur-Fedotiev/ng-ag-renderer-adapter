@@ -12,11 +12,15 @@ import { ETF } from '../../models';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { CommonModule } from '@angular/common';
 
+/**
+ * This component is a heavy component that will slow down the rendering of the grid.
+ */
 @Component({
   selector: 'ngagra-heavy-renderer-component',
   standalone: true,
   imports: [MatCardModule, MatInputModule, MatFormFieldModule, CommonModule],
   template: `
+    <!-- This is just a dummy component to simulate a heavy component that will slow down the rendering of the grid. -->
     <div style="display: none;">
       <mat-form-field *ngFor="let n of itWillSlooooowThingsDown">
         <mat-label>Input</mat-label>

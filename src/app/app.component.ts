@@ -3,6 +3,8 @@ import { HeavyRendererComponentComponent } from './ui';
 import { AgGridAngular } from 'ag-grid-angular'; // AG Grid Component
 import { ColDef } from 'ag-grid-community';
 import { ETF } from './models/etf';
+import { createMockEtfData } from './data';
+import { GridOptions } from 'ag-grid-community';
 
 @Component({
   selector: 'ngagra-root',
@@ -22,9 +24,10 @@ import { ETF } from './models/etf';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent {
-  protected readonly gridOptions = {
+  protected readonly gridOptions: GridOptions<ETF> = {
     defaultColDef: {
       cellRenderer: HeavyRendererComponentComponent,
+      width: 175,
     },
   };
 
@@ -41,41 +44,5 @@ export class AppComponent {
     { headerName: 'Return 3 Years (%)', field: 'return3Year' },
   ];
 
-  protected readonly rowData = this.createMockData(1000);
-
-  createMockData(count: number) {
-    const fundNames = ['Vanguard', 'iShares', 'SPDR', 'Fidelity', 'Schwab'];
-    const assetClasses = [
-      'Equity',
-      'Fixed Income',
-      'Commodity',
-      'Real Estate',
-      'Multi-Asset',
-    ];
-    const tickers = [
-      'VTI',
-      'VOO',
-      'SPY',
-      'QQQ',
-      'BND',
-      'GLD',
-      'VNQ',
-      'IEMG',
-      'HYG',
-      'XLF',
-    ];
-
-    return Array.from({ length: count }, (_, i) => ({
-      fundName: `${fundNames[i % fundNames.length]} Fund ${i}`,
-      ticker: tickers[i % tickers.length],
-      assetClass: assetClasses[i % assetClasses.length],
-      totalAssets: Math.floor(Math.random() * 1000000) + 1000000, // 1M - 2M
-      yield: +(Math.random() * 10).toFixed(2), // 0.00 - 10.00
-      price: +(Math.random() * 300 + 100).toFixed(2), // 100.00 - 400.00
-      fundFlows: Math.floor(Math.random() * 1000000) - 500000, // -500K - 500K
-      returnYTD: +(Math.random() * 100 - 50).toFixed(2), // -50.00 - 50.00
-      return1Year: +(Math.random() * 100 - 50).toFixed(2), // -50.00 - 50.00
-      return3Year: +(Math.random() * 300 - 150).toFixed(2), // -150.00 - 150.00
-    }));
-  }
+  protected readonly rowData = createMockEtfData(10_000);
 }
