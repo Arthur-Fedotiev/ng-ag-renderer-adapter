@@ -8,36 +8,45 @@ import {
   ComponentRef,
   createComponent,
 } from '@angular/core';
+import { ICellRendererAdapterAugmentedParams } from './models';
 import { ICellRendererAngularComp } from 'ag-grid-angular';
-import { ICellRendererParams } from 'ag-grid-community';
+
+@Injectable()
+export abstract class AngularComponentManager<
+  TComponent = unknown,
+  TParams = unknown,
+> {
+  protected readonly elementInjector = inject(Injector);
+  protected readonly appRef = inject(ApplicationRef);
+  protected readonly envInjector = inject(EnvironmentInjector);
+
+  abstract createComponent(
+    type: Type<TComponent>,
+    host: HTMLElement,
+    params?: TParams,
+  ): ComponentRef<TComponent>;
+
+  abstract releaseComponent(componentRef: ComponentRef<TComponent>): void;
+}
 
 /**
-
- * `AgGridComponentManagerImpl` is a concrete implementation of `AgGridComponentManager`.
-
- * It creates an Angular component of the given type and append to the given DOM node to be rendered in the grid.
-
- * It also registers the newly created ref using the `ApplicationRef` instance to include
-
- * the component view into change detection cycles.
-
- *  The `releaseComponent` method destroys a given component when it is no longer needed.
-
+ * Concrete implementation of the AngularComponentManager for the AgGrid components.
+ * It creates and manages the lifecycle of the Angular components used as cell renderers in AgGrid.
+ * @see AngularComponentManager
+ *
  */
-
 @Injectable({
   providedIn: 'root',
 })
-export class AgGridComponentManager {
-  private readonly elementInjector = inject(Injector);
-  private readonly appRef = inject(ApplicationRef);
-  private readonly envInjector = inject(EnvironmentInjector);
-
-  createComponent(
+export class AgGridComponentManager extends AngularComponentManager<
+  ICellRendererAngularComp,
+  ICellRendererAdapterAugmentedParams
+> {
+  override createComponent(
     type: Type<ICellRendererAngularComp>,
-    params: ICellRendererParams,
     parentEl: HTMLElement,
-  ): ComponentRef<ICellRendererAngularComp> {
+    params: ICellRendererAdapterAugmentedParams,
+  ) {
     const componentRef = createComponent(type, {
       environmentInjector: this.envInjector,
       elementInjector: this.elementInjector,
@@ -52,7 +61,10 @@ export class AgGridComponentManager {
     return componentRef;
   }
 
-  releaseComponent(ref: ComponentRef<ICellRendererAngularComp>): void {
-    ref.destroy();
+  override releaseComponent(
+    componentRef: ComponentRef<ICellRendererAngularComp>,
+  ): void {
+    this.appRef.detachView(componentRef.hostView);
+    componentRef.destroy();
   }
 }

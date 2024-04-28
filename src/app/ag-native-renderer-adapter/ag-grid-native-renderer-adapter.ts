@@ -1,56 +1,48 @@
-import { ComponentRef, Type } from '@angular/core';
+import { ComponentRef } from '@angular/core';
 import { AgGridComponentManager } from './ag-grid-component-manager';
-import { ICellRendererAngularComp } from 'ag-grid-angular';
-import { ICellRendererParams, ICellRendererComp } from 'ag-grid-community';
+import { ICellRendererComp } from 'ag-grid-community';
+import {
+  AgGridNativeRendererAdapterOptions,
+  ICellRendererAdapterAugmentedParams,
+  AgGridNativeRendererHostElFactory,
+  AugmentedNativeRendereContext,
+  CellRendererAngularManageableComponent,
+} from './models';
 
-export type ICellRendererAdapterAugmentedParams<
-  TData = unknown,
-  TValue = unknown,
-> = ICellRendererParams<TData, TValue> & {
-  component: Type<ICellRendererAngularComp>;
-  nativeRendererAdapterOptions?: AgGridNativeRendererAdapterOptions;
+/**
+ * The default options for the native renderer adapter.
+ */
+export const DEFAULT_NATIVE_RENDERER_ADAPTER: Required<AgGridNativeRendererAdapterOptions> & {
+  hostElement: AgGridNativeRendererHostElFactory;
+} = {
+  ngRendererActivationEvents: ['mouseover'],
+  hostElement(params) {
+    const hostElement = document.createElement('div');
+    hostElement.className = 'native-renderer';
+    hostElement.style.width = '100%';
+    hostElement.innerHTML = `<span>${params.value}</span>`;
+    return hostElement;
+  },
 };
 
-export interface AugmentedNativeRendereContext {
-  componentManager: AgGridComponentManager;
-}
-
-export interface AgGridNativeRendererAdapterOptions {
-  ngRendererActivationEvents?: string[];
-  hostElement?: HTMLElement | AgGridNativeRendererHostElFactory;
-}
-
-export type AgGridNativeRendererHostElFactory = (
-  params: ICellRendererAdapterAugmentedParams,
-) => HTMLElement;
-
-export const DEFAULT_NATIVE_RENDERER_ADAPTER: Required<AgGridNativeRendererAdapterOptions> =
-  {
-    ngRendererActivationEvents: ['mouseover'],
-    hostElement(params) {
-      const hostElement = document.createElement('div');
-      hostElement.className = 'native-renderer';
-      hostElement.style.width = '100%';
-      hostElement.innerHTML = `<span>${params.value}</span>`;
-      return hostElement;
-    },
-  };
-
 export class AgGridNativeRendererAdapter implements ICellRendererComp {
-  private activeComponent: ComponentRef<ICellRendererAngularComp> | null = null;
+  private activeComponent: ComponentRef<CellRendererAngularManageableComponent> | null =
+    null;
   private hostEl!: HTMLElement;
   private params!: ICellRendererAdapterAugmentedParams;
   private normalizedOptions!: Required<AgGridNativeRendererAdapterOptions>;
   private onActivated: (e: Event) => void = () => {};
-  private activationCbId?: ReturnType<typeof requestIdleCallback>;
+  private idelyScheduledActivationListener?: ReturnType<
+    typeof requestIdleCallback
+  >;
   private initComponentTimeoutId?: ReturnType<typeof setTimeout>;
 
   private get componentManager() {
     return this.params.context.componentManager;
   }
 
-  init(params: ICellRendererAdapterAugmentedParams): void {
-    if (!this.verifyParams(params)) {
+  init(params: ICellRendererAdapterAugmentedParams) {
+    if (!this.isParamsAugmented(params)) {
       return;
     }
 
@@ -64,14 +56,13 @@ export class AgGridNativeRendererAdapter implements ICellRendererComp {
     this.scheduleActivation(this.hostEl, params);
   }
 
-  destroy(): void {
-    this.activeComponent &&
-      this.componentManager.releaseComponent(this.activeComponent);
-    this.initComponentTimeoutId && clearTimeout(this.initComponentTimeoutId);
-    this.activationCbId && cancelIdleCallback(this.activationCbId);
+  destroy() {
+    this.cancelActivationListenerAttachmentIfScheduled();
+    this.clearComponentInitializationIfScheduled();
+    this.releaseActiveComponentIfInitialized();
   }
 
-  refresh(params: ICellRendererAdapterAugmentedParams): boolean {
+  refresh(params: ICellRendererAdapterAugmentedParams) {
     return this.activeComponent
       ? this.activeComponent.instance.refresh(params)
       : false;
@@ -81,7 +72,66 @@ export class AgGridNativeRendererAdapter implements ICellRendererComp {
     return this.hostEl;
   }
 
-  private verifyParams(
+  private createHostElemt() {
+    return typeof this.normalizedOptions.hostElement === 'function'
+      ? this.normalizedOptions.hostElement(this.params!)
+      : this.normalizedOptions.hostElement;
+  }
+
+  private scheduleActivation(
+    hostElement: HTMLElement,
+    params: ICellRendererAdapterAugmentedParams,
+  ) {
+    this.onActivated = () => {
+      this.initComponentTimeoutId = setTimeout(() => {
+        this.initComponent(hostElement, params);
+      });
+    };
+
+    const attachListenersCb = () => {
+      this.attachUserInteractionListeners(hostElement);
+      this.attachCellFocusListener(params);
+    };
+
+    this.scheduleActivationListenerAttachment(attachListenersCb);
+  }
+
+  private attachUserInteractionListeners(hostElement: HTMLElement) {
+    this.normalizedOptions.ngRendererActivationEvents.forEach((event) => {
+      hostElement.addEventListener(event, this.onActivated, {
+        passive: true,
+      });
+    });
+  }
+  private attachCellFocusListener(params: ICellRendererAdapterAugmentedParams) {
+    params.eGridCell.addEventListener('focus', this.onActivated, {
+      passive: true,
+    });
+  }
+
+  private scheduleActivationListenerAttachment(attachListenersCb: () => void) {
+    this.idelyScheduledActivationListener = requestIdleCallback(
+      attachListenersCb,
+      {
+        timeout: 50,
+      },
+    );
+  }
+
+  private initComponent(
+    hostElement: HTMLElement,
+    params: ICellRendererAdapterAugmentedParams,
+  ) {
+    if (this.activeComponent) {
+      return;
+    }
+
+    this.activeComponent = (
+      params.context.componentManager as AgGridComponentManager
+    ).createComponent(params.component, hostElement, params);
+  }
+
+  private isParamsAugmented(
     params: ICellRendererAdapterAugmentedParams,
   ): params is ICellRendererAdapterAugmentedParams & {
     context: AugmentedNativeRendereContext;
@@ -101,55 +151,33 @@ export class AgGridNativeRendererAdapter implements ICellRendererComp {
     return true;
   }
 
-  private createHostElemt() {
-    if (!this.normalizedOptions.hostElement) {
-      return (
-        DEFAULT_NATIVE_RENDERER_ADAPTER.hostElement as AgGridNativeRendererHostElFactory
-      )(this.params!);
+  private releaseActiveComponentIfInitialized() {
+    if (this.isComponentInitializationComplete()) {
+      this.componentManager.releaseComponent(this.activeComponent);
     }
-
-    return typeof this.normalizedOptions.hostElement === 'function'
-      ? this.normalizedOptions.hostElement(this.params!)
-      : this.normalizedOptions.hostElement;
   }
 
-  scheduleActivation(
-    hostElement: HTMLElement,
-    params: ICellRendererAdapterAugmentedParams,
-  ): void {
-    this.onActivated = () => {
-      this.initComponentTimeoutId = setTimeout(() =>
-        this.initComponent(hostElement, params),
-      );
-    };
-
-    const attachListenersCb = () => {
-      this.normalizedOptions.ngRendererActivationEvents.forEach((event) => {
-        hostElement.addEventListener(event, this.onActivated, {
-          passive: true,
-        });
-      });
-
-      params.eGridCell.addEventListener('focus', this.onActivated, {
-        passive: true,
-      });
-    };
-
-    this.activationCbId = requestIdleCallback(attachListenersCb, {
-      timeout: 1_000,
-    });
+  private clearComponentInitializationIfScheduled() {
+    if (this.isComponentInitializationScheduled()) {
+      clearTimeout(this.initComponentTimeoutId);
+    }
   }
 
-  private initComponent(
-    hostElement: HTMLElement,
-    params: ICellRendererAdapterAugmentedParams,
-  ) {
-    if (this.activeComponent) {
-      return;
+  private cancelActivationListenerAttachmentIfScheduled() {
+    if (this.isActivationListenerAattachmentScheduled()) {
+      cancelIdleCallback(this.idelyScheduledActivationListener!);
     }
+  }
 
-    this.activeComponent = (
-      params.context.componentManager as AgGridComponentManager
-    ).createComponent(params.component, params, hostElement);
+  private isComponentInitializationComplete() {
+    return Boolean(this.activeComponent);
+  }
+
+  private isComponentInitializationScheduled() {
+    return Boolean(this.initComponentTimeoutId);
+  }
+
+  private isActivationListenerAattachmentScheduled() {
+    return Boolean(this.idelyScheduledActivationListener);
   }
 }

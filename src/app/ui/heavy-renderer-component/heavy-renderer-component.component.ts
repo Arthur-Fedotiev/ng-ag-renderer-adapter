@@ -20,13 +20,15 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [MatInputModule, MatFormFieldModule, CommonModule],
   template: `
-    <!-- This is just a dummy component to simulate a heavy component that will slow down the rendering of the grid. -->
+    <!-- This will slooooow things down! It's not visible on the UI but participates in Change Detection -->
     <div style="display: none;">
-      <mat-form-field *ngFor="let n of itWillSlooooowThingsDown">
+      <mat-form-field *ngFor="let n of amountOfDummyTpls">
         <mat-label>Input</mat-label>
         <input matInput />
       </mat-form-field>
     </div>
+
+    <!-- This is the actual renderer input you see on UI -->
     <input matInput class="value-input" [value]="params.value" />
   `,
   styles: [
@@ -49,7 +51,7 @@ export class HeavyRendererComponentComponent
   @HostBinding('class.ag-input-cell') readonly hostClass = true;
 
   protected params!: ICellRendererParams<ETF>;
-  protected readonly itWillSlooooowThingsDown = Array(40).fill(0);
+  protected readonly amountOfDummyTpls = Array(40).fill(0);
 
   private readonly cdr = inject(ChangeDetectorRef);
 
@@ -59,7 +61,7 @@ export class HeavyRendererComponentComponent
 
   refresh(params: ICellRendererParams<ETF>) {
     this.params = params;
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
 
     return true;
   }

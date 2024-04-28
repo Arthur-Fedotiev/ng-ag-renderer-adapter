@@ -1,5 +1,6 @@
+import { MatCardModule } from '@angular/material/card';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { HeavyRendererComponentComponent } from './ui';
+import { HeavyRendererComponentComponent, LegendComponent } from './ui';
 import { AgGridAngular } from 'ag-grid-angular'; // AG Grid Component
 import { ColDef, GridOptions, ICellRendererParams } from 'ag-grid-community';
 import { ETF } from './models/etf';
@@ -8,29 +9,79 @@ import {
   AgGridComponentManager,
   AgGridNativeRendererAdapter,
 } from './ag-native-renderer-adapter';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatIconModule } from '@angular/material/icon';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'ngagra-root',
   standalone: true,
-  imports: [AgGridAngular],
+  imports: [
+    CommonModule,
+    AgGridAngular,
+    MatTabsModule,
+    MatCardModule,
+    MatIconModule,
+    MatDividerModule,
+    MatExpansionModule,
+    LegendComponent,
+  ],
   template: `
-    <ag-grid-angular
-      style="width: 100%; height: 500px;"
-      class="ag-theme-alpine"
-      [gridOptions]="gridOptions"
-      [columnDefs]="columnDefs"
-      [rowData]="rowData"
-    >
-    </ag-grid-angular>
+    <ngagra-legend />
+    <mat-tab-group>
+      <mat-tab label="Optimized">
+        <ng-template matTabContent>
+          <ag-grid-angular
+            style="width: 100%; height: 500px;"
+            class="ag-theme-alpine"
+            [gridOptions]="gridOptions"
+            [columnDefs]="columnDefs"
+            [defaultColDef]="defColDefFast"
+            [rowData]="rowData"
+          >
+          </ag-grid-angular>
+        </ng-template>
+      </mat-tab>
+      <mat-tab label="Un-optimized">
+        <ng-template matTabContent>
+          <ag-grid-angular
+            style="width: 100%; height: 500px;"
+            class="ag-theme-alpine"
+            [gridOptions]="gridOptions"
+            [defaultColDef]="defColDefSlow"
+            [columnDefs]="columnDefs"
+            [rowData]="rowData"
+          >
+          </ag-grid-angular>
+        </ng-template>
+      </mat-tab>
+    </mat-tab-group>
   `,
   styleUrls: ['./app.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent {
   protected readonly gridOptions: GridOptions<ETF> = {
-    // defaultColDef: this.getDefaultColDefSlow(),
-    defaultColDef: this.getDefaultColDefFast(),
     context: { componentManager: inject(AgGridComponentManager) },
+  };
+
+  protected readonly defColDefSlow: ColDef<ETF> = {
+    cellRenderer: HeavyRendererComponentComponent,
+    width: 175,
+  };
+
+  protected readonly defColDefFast: ColDef<ETF> = {
+    cellRenderer: AgGridNativeRendererAdapter,
+    cellRendererParams: {
+      component: HeavyRendererComponentComponent,
+      nativeRendererAdapterOptions: {
+        hostElement: (params: ICellRendererParams<ETF>) =>
+          this.createNativeCellWithInputEl(params),
+      },
+    },
+    width: 175,
   };
 
   protected readonly columnDefs: ColDef<ETF>[] = [
@@ -47,29 +98,6 @@ export class AppComponent {
   ];
 
   protected readonly rowData = createMockEtfData(10_000);
-
-  private getDefaultColDefSlow(): ColDef<ETF> {
-    return {
-      cellRenderer: HeavyRendererComponentComponent,
-      width: 175,
-    };
-  }
-
-  private getDefaultColDefFast(): ColDef<ETF> {
-    const nativeRendererAdapterParams = {
-      component: HeavyRendererComponentComponent,
-      nativeRendererAdapterOptions: {
-        hostElement: (params: ICellRendererParams<ETF>) =>
-          this.createNativeCellWithInputEl(params),
-      },
-    };
-
-    return {
-      cellRenderer: AgGridNativeRendererAdapter,
-      cellRendererParams: nativeRendererAdapterParams,
-      width: 175,
-    };
-  }
 
   private createNativeCellWithInputEl(params: ICellRendererParams<ETF>) {
     const hostElement = document.createElement('div');
