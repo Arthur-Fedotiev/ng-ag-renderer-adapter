@@ -8,8 +8,8 @@ import {
   ComponentRef,
   createComponent,
 } from '@angular/core';
-import { ICellRendererAdapterAugmentedParams } from './models';
 import { ICellRendererAngularComp } from 'ag-grid-angular';
+import { ICellRendererParams } from 'ag-grid-community';
 
 @Injectable()
 export abstract class AngularComponentManager<
@@ -20,12 +20,26 @@ export abstract class AngularComponentManager<
   protected readonly appRef = inject(ApplicationRef);
   protected readonly envInjector = inject(EnvironmentInjector);
 
+  /**
+   * Creates an Angular component of the given type and attaches it to the given host element.
+   * Also attaches the Component View to the ApplicationRef (Change Detection).
+   * @param type The type of the component to create.
+   * @param host The host element to attach the component to.
+   * @param params The parameters to pass to the component initialization method
+   * @returns The created ComponentRef ({@link ComponentRef}) of the created component.
+   */
   abstract createComponent(
     type: Type<TComponent>,
     host: HTMLElement,
     params?: TParams,
   ): ComponentRef<TComponent>;
 
+  /**
+   * Releases the given component from the Angular application:
+   * - Detaches the Component View from the ApplicationRef (Change Detection).
+   * - Destroys the component.
+   * @param componentRef The component to release.
+   */
   abstract releaseComponent(componentRef: ComponentRef<TComponent>): void;
 }
 
@@ -40,12 +54,12 @@ export abstract class AngularComponentManager<
 })
 export class AgGridComponentManager extends AngularComponentManager<
   ICellRendererAngularComp,
-  ICellRendererAdapterAugmentedParams
+  ICellRendererParams
 > {
   override createComponent(
     type: Type<ICellRendererAngularComp>,
     parentEl: HTMLElement,
-    params: ICellRendererAdapterAugmentedParams,
+    params: ICellRendererParams,
   ) {
     const componentRef = createComponent(type, {
       environmentInjector: this.envInjector,

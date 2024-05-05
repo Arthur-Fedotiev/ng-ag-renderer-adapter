@@ -25,6 +25,16 @@ export const DEFAULT_NATIVE_RENDERER_ADAPTER: Required<AgGridNativeRendererAdapt
   },
 };
 
+/**
+ * `AgGridNativeRendererAdapter` is AG grid's native cell renderer that renderers provided by consumer
+ * HTML element and swaps it with the Angular component Cell renderer when the user interacts with the cell.
+ * It's goal to improve the performance of the grid by rendering the cell content with a native renderer
+ * and only swapping it with the Angular component when the user interacts with the individual cell.
+ * In such a way, the grid can render a large number of cells without the performance penalty which comes with
+ * Angular component rendering and associated change detection.
+ *
+ *
+ */
 export class AgGridNativeRendererAdapter implements ICellRendererComp {
   private activeComponent: ComponentRef<CellRendererAngularManageableComponent> | null =
     null;
@@ -41,6 +51,13 @@ export class AgGridNativeRendererAdapter implements ICellRendererComp {
     return this.params.context.componentManager;
   }
 
+  /**
+   *  Initializes the native renderer adapter. It creates the host element and schedules the activation of the Angular component
+   * when the user interacts with the cell (e.g. mouseover, focus)
+   *
+   * @param params The cell renderer params augmented with the context of the grid.
+   * @returns  void
+   */
   init(params: ICellRendererAdapterAugmentedParams) {
     if (!this.isParamsAugmented(params)) {
       return;
@@ -56,18 +73,34 @@ export class AgGridNativeRendererAdapter implements ICellRendererComp {
     this.scheduleActivation(this.hostEl, params);
   }
 
+  /**
+   * Destroys the native renderer adapter. It releases the active Angular component and clears the scheduled component initialization.
+   *
+   * @returns void
+   */
   destroy() {
     this.cancelActivationListenerAttachmentIfScheduled();
     this.clearComponentInitializationIfScheduled();
     this.releaseActiveComponentIfInitialized();
   }
 
+  /**
+   * Refreshes the active Angular component with the new params.
+   *
+   * @param params The new params to refresh the component with.
+   * @returns boolean
+   */
   refresh(params: ICellRendererAdapterAugmentedParams) {
     return this.activeComponent
       ? this.activeComponent.instance.refresh(params)
       : false;
   }
 
+  /**
+   * Gets the GUI of the native renderer adapter.
+   *
+   * @returns HTMLElement
+   */
   getGui() {
     return this.hostEl;
   }
