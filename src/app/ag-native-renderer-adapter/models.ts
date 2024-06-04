@@ -17,7 +17,7 @@ export type ICellRendererAdapterAugmentedParams<
    * The context for the renderer, which must include the component manager,
    * used component instances, and manage its lifecycle.
    */
-  context: AugmentedNativeRendereContext;
+  context: AugmentedNativeRendererContext;
   /**
    * The Angular component to be used as a Cell Renderer when activated.
    */
@@ -31,7 +31,7 @@ export type ICellRendererAdapterAugmentedParams<
 /**
  * The context for the renderer, which must include the component manager,
  */
-export interface AugmentedNativeRendereContext {
+export interface AugmentedNativeRendererContext {
   /**
    * The component manager used to create and manage the lifecycle of the Angular components ({@link AgGridComponentManager}).
    */

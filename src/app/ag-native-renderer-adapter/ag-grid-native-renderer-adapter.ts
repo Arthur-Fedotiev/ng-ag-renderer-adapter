@@ -5,7 +5,7 @@ import {
   AgGridNativeRendererAdapterOptions,
   ICellRendererAdapterAugmentedParams,
   AgGridNativeRendererHostElFactory,
-  AugmentedNativeRendereContext,
+  AugmentedNativeRendererContext,
   CellRendererAngularManageableComponent,
 } from './models';
 
@@ -81,11 +81,13 @@ export class AgGridNativeRendererAdapter implements ICellRendererComp {
   destroy() {
     this.cancelActivationListenerAttachmentIfScheduled();
     this.clearComponentInitializationIfScheduled();
+    this.clearEventListeners();
     this.releaseActiveComponentIfInitialized();
   }
 
   /**
    * Refreshes the active Angular component with the new params.
+   * If the component is not initialized, it returns false to indicate that the refresh should be handled by the native renderer.
    *
    * @param params The new params to refresh the component with.
    * @returns boolean
@@ -105,12 +107,21 @@ export class AgGridNativeRendererAdapter implements ICellRendererComp {
     return this.hostEl;
   }
 
+  /**
+   * Uses the provided host element factory/HTML-element to create the host
+   * element being a placeholder shown to the user. It is specific
+   * for the use case and will be eventually swapped with Angular cell renderer.
+   */
   private createHostElemt() {
     return typeof this.normalizedOptions.hostElement === 'function'
       ? this.normalizedOptions.hostElement(this.params!)
       : this.normalizedOptions.hostElement;
   }
 
+  /**
+   * Schedules the activation of the Angular component when the user interacts with the cell.
+   * It attaches the activation listeners to the host element and the cell focus event in next tick.
+   */
   private scheduleActivation(
     hostElement: HTMLElement,
     params: ICellRendererAdapterAugmentedParams,
@@ -129,19 +140,38 @@ export class AgGridNativeRendererAdapter implements ICellRendererComp {
     this.scheduleActivationListenerAttachment(attachListenersCb);
   }
 
+  /**
+   * Attaches the user interaction listeners to the host element.
+   * The listeners are defined in the `ngRendererActivationEvents` property of the `AgGridNativeRendererAdapterOptions`.
+   * It uses the passive event listener to avoid blocking the main thread when the user interacts with the cell.
+   * @param hostElement The host element to attach the listeners to.
+   * {@see https://github.com/Arthur-Fedotiev/ng-ag-renderer-adapter/blob/6f00ea76f371aa7d1b29fbccba16876a97e94f5b/src/app/ag-native-renderer-adapter/ag-grid-native-renderer-adapter.ts#L61}
+   */
   private attachUserInteractionListeners(hostElement: HTMLElement) {
     this.normalizedOptions.ngRendererActivationEvents.forEach((event) => {
       hostElement.addEventListener(event, this.onActivated, {
         passive: true,
+        once: true,
       });
     });
   }
+
+  /**
+   * Attaches the focus event listener to the cell element.
+   * It's used to activate the Angular component when the cell is focused.
+   * It uses the passive event listener to avoid blocking the main thread when the user interacts with the cell.
+   */
   private attachCellFocusListener(params: ICellRendererAdapterAugmentedParams) {
     params.eGridCell.addEventListener('focus', this.onActivated, {
       passive: true,
+      once: true,
     });
   }
 
+  /**
+   * It uses the `requestIdleCallback` to schedule the activation listener attachment in the next idle period,
+   * which allows the browser to perform high-priority tasks first (e.g. rendering, user input handling)
+   */
   private scheduleActivationListenerAttachment(attachListenersCb: () => void) {
     this.idelyScheduledActivationListener = requestIdleCallback(
       attachListenersCb,
@@ -151,6 +181,10 @@ export class AgGridNativeRendererAdapter implements ICellRendererComp {
     );
   }
 
+  /**
+   * Initializes the Angular component with the provided host element and params.
+   * It uses the `AgGridComponentManager` to create the component and attach it to the host element.
+   */
   private initComponent(
     hostElement: HTMLElement,
     params: ICellRendererAdapterAugmentedParams,
@@ -164,10 +198,14 @@ export class AgGridNativeRendererAdapter implements ICellRendererComp {
     ).createComponent(params.component, hostElement, params);
   }
 
+  /**
+   * Checks if the provided params are augmented with the grid context and the component.
+   * It throws an error if the context or the component is missing.
+   */
   private isParamsAugmented(
     params: ICellRendererAdapterAugmentedParams,
   ): params is ICellRendererAdapterAugmentedParams & {
-    context: AugmentedNativeRendereContext;
+    context: AugmentedNativeRendererContext;
   } {
     if (!params.context?.componentManager) {
       throw new Error(
@@ -194,6 +232,11 @@ export class AgGridNativeRendererAdapter implements ICellRendererComp {
     if (this.isComponentInitializationScheduled()) {
       clearTimeout(this.initComponentTimeoutId);
     }
+  }
+
+  private clearEventListeners() {
+    this.hostEl.removeEventListener('mouseover', this.onActivated);
+    this.params.eGridCell.removeEventListener('focus', this.onActivated);
   }
 
   private cancelActivationListenerAttachmentIfScheduled() {
