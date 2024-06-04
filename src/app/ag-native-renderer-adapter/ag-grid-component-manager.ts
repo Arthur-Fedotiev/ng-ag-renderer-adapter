@@ -67,11 +67,9 @@ export class AgGridComponentManager extends AngularComponentManager<
       hostElement: parentEl,
     });
 
-    // Attach the component view to the CD tree
     this.appRef.attachView(componentRef.hostView);
-    // Kick off Angular cell renderer initialization.
     componentRef.instance.agInit(params);
-    // Run initial CD on the Angular cell renderer view and its children
+
     componentRef.changeDetectorRef.detectChanges();
 
     return componentRef;

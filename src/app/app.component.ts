@@ -31,6 +31,19 @@ import { CommonModule } from '@angular/common';
   template: `
     <ngagra-legend />
     <mat-tab-group>
+      <mat-tab label="Optimized">
+        <ng-template matTabContent>
+          <ag-grid-angular
+            style="width: 100%; height: 500px;"
+            class="ag-theme-alpine"
+            [gridOptions]="gridOptions"
+            [columnDefs]="columnDefs"
+            [defaultColDef]="defColDefFast"
+            [rowData]="rowData"
+          >
+          </ag-grid-angular>
+        </ng-template>
+      </mat-tab>
       <mat-tab label="Un-optimized">
         <ng-template matTabContent>
           <ag-grid-angular
@@ -42,20 +55,6 @@ import { CommonModule } from '@angular/common';
             [rowData]="rowData"
           >
           </ag-grid-angular>
-        </ng-template>
-      </mat-tab>
-      <mat-tab label="Optimized">
-        <ng-template matTabContent>
-          <ag-grid-angular
-            style="width: 100%; height: 500px;"
-            class="ag-theme-alpine"
-            [gridOptions]="gridOptions"
-            [columnDefs]="columnDefs"
-            [defaultColDef]="defColDefFast"
-            [rowData]="rowData"
-          >
-  
-                  </ag-grid-angular>
         </ng-template>
       </mat-tab>
     </mat-tab-group>
